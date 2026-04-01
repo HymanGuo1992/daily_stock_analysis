@@ -1422,6 +1422,15 @@ class GeminiAnalyzer:
             trend = context['trend_analysis']
             if use_legacy_default_prompt:
                 bias_warning = "🚨 超过5%，严禁追高！" if trend.get('bias_ma5', 0) > 5 else "✅ 安全范围"
+                ma60 = trend.get('ma60', 0)
+                current_price = trend.get('current_price', 0)
+                ma60_pos = f"价格{'高于' if current_price > ma60 else '低于'} MA60（{ma60:.2f}）" if ma60 > 0 else unknown_text
+                macd_dif = trend.get('macd_dif', 0)
+                macd_dea = trend.get('macd_dea', 0)
+                macd_bar = trend.get('macd_bar', 0)
+                macd_cross = "金叉" if macd_dif > macd_dea else "死叉"
+                rsi_6 = trend.get('rsi_6', 0)
+                rsi_6_desc = "超买" if rsi_6 > 70 else ("超卖" if rsi_6 < 30 else "正常")
                 prompt += f"""
 ### 趋势分析预判（基于交易理念）
 | 指标 | 数值 | 判定 |
@@ -1431,7 +1440,15 @@ class GeminiAnalyzer:
 | 趋势强度 | {trend.get('trend_strength', 0)}/100 | |
 | **乖离率(MA5)** | **{trend.get('bias_ma5', 0):+.2f}%** | {bias_warning} |
 | 乖离率(MA10) | {trend.get('bias_ma10', 0):+.2f}% | |
+| 乖离率(MA20) | {trend.get('bias_ma20', 0):+.2f}% | |
+| MA60位置 | {ma60:.2f} | {ma60_pos} |
 | 量能状态 | {trend.get('volume_status', unknown_text)} | {trend.get('volume_trend', '')} |
+| MACD(DIF) | {macd_dif:.4f} | {trend.get('macd_status', unknown_text)}，{macd_cross} |
+| MACD(DEA) | {macd_dea:.4f} | |
+| MACD柱 | {macd_bar:.4f} | {'红柱扩大' if macd_bar > 0 else '绿柱扩大'} |
+| RSI(6) | {rsi_6:.1f} | {rsi_6_desc}，>70超买/<30超卖 |
+| RSI(12) | {trend.get('rsi_12', 0):.1f} | |
+| RSI(24) | {trend.get('rsi_24', 0):.1f} | 长期强弱参考 |
 | 系统信号 | {trend.get('buy_signal', unknown_text)} | |
 | 系统评分 | {trend.get('signal_score', 0)}/100 | |
 
@@ -1441,6 +1458,9 @@ class GeminiAnalyzer:
 
 **风险因素**：
 {chr(10).join('- ' + r for r in trend.get('risk_factors', ['无'])) if trend.get('risk_factors') else '- 无'}
+
+**MACD信号**：{trend.get('macd_signal', unknown_text)}
+**RSI信号**：{trend.get('rsi_signal', unknown_text)}
 """
             else:
                 bias_warning = (
@@ -1448,6 +1468,15 @@ class GeminiAnalyzer:
                     if trend.get('bias_ma5', 0) > 5
                     else "✅ 位置相对可控"
                 )
+                ma60 = trend.get('ma60', 0)
+                current_price = trend.get('current_price', 0)
+                ma60_pos = f"价格{'高于' if current_price > ma60 else '低于'} MA60（{ma60:.2f}）" if ma60 > 0 else unknown_text
+                macd_dif = trend.get('macd_dif', 0)
+                macd_dea = trend.get('macd_dea', 0)
+                macd_bar = trend.get('macd_bar', 0)
+                macd_cross = "金叉" if macd_dif > macd_dea else "死叉"
+                rsi_6 = trend.get('rsi_6', 0)
+                rsi_6_desc = "超买" if rsi_6 > 70 else ("超卖" if rsi_6 < 30 else "正常")
                 prompt += f"""
 ### 技术与结构分析（供激活技能判断参考）
 | 指标 | 数值 | 说明 |
@@ -1457,7 +1486,15 @@ class GeminiAnalyzer:
 | 趋势强度 | {trend.get('trend_strength', 0)}/100 | |
 | **价格位置(MA5)** | **{trend.get('bias_ma5', 0):+.2f}%** | {bias_warning} |
 | 价格位置(MA10) | {trend.get('bias_ma10', 0):+.2f}% | |
+| 价格位置(MA20) | {trend.get('bias_ma20', 0):+.2f}% | |
+| MA60位置 | {ma60:.2f} | {ma60_pos} |
 | 量能状态 | {trend.get('volume_status', unknown_text)} | {trend.get('volume_trend', '')} |
+| MACD(DIF) | {macd_dif:.4f} | {trend.get('macd_status', unknown_text)}，{macd_cross} |
+| MACD(DEA) | {macd_dea:.4f} | |
+| MACD柱 | {macd_bar:.4f} | {'红柱扩大' if macd_bar > 0 else '绿柱扩大'} |
+| RSI(6) | {rsi_6:.1f} | {rsi_6_desc}，>70超买/<30超卖 |
+| RSI(12) | {trend.get('rsi_12', 0):.1f} | |
+| RSI(24) | {trend.get('rsi_24', 0):.1f} | 长期强弱参考 |
 | 系统信号 | {trend.get('buy_signal', unknown_text)} | |
 | 系统评分 | {trend.get('signal_score', 0)}/100 | |
 
@@ -1467,6 +1504,9 @@ class GeminiAnalyzer:
 
 **风险因素**：
 {chr(10).join('- ' + r for r in trend.get('risk_factors', ['无'])) if trend.get('risk_factors') else '- 无'}
+
+**MACD信号**：{trend.get('macd_signal', unknown_text)}
+**RSI信号**：{trend.get('rsi_signal', unknown_text)}
 """
         
         # 添加昨日对比数据
@@ -1555,11 +1595,13 @@ class GeminiAnalyzer:
             prompt += f"""
 
 ### 重点关注（必须明确回答）：
-1. ❓ 是否满足 MA5>MA10>MA20 多头排列？
+1. ❓ 是否满足 MA5>MA10>MA20 多头排列？当前价格与 MA60 的位置关系如何？
 2. ❓ 当前乖离率是否在安全范围内（<5%）？—— 超过5%必须标注"严禁追高"
 3. ❓ 量能是否配合（缩量回调/放量突破）？
 4. ❓ 筹码结构是否健康？
 5. ❓ 消息面有无重大利空？（减持、处罚、业绩变脸等）
+6. ❓ MACD 当前金叉/死叉状态？DIF 与 DEA 的趋势方向是否一致？柱状图放大还是收缩？
+7. ❓ RSI(6) 是否处于超买（>70）或超卖（<30）区间？与 RSI(12)/RSI(24) 是否共振？
 """
         else:
             prompt += f"""
