@@ -75,6 +75,7 @@ class MarketOverview:
     # 板块涨幅榜
     top_sectors: List[Dict] = field(default_factory=list)     # 涨幅前5板块
     bottom_sectors: List[Dict] = field(default_factory=list)  # 跌幅前5板块
+    capital_flow_sectors: Optional[Dict] = None               # 板块资金净流入排名
 
 
 class MarketAnalyzer:
@@ -214,6 +215,16 @@ class MarketAnalyzer:
 
         except Exception as e:
             logger.error(f"[大盘] 获取板块涨跌榜失败: {e}")
+
+        # 追加板块资金净流入排名（AkShare 免费，fail-open）
+        try:
+            cf = self.data_manager.get_capital_flow_context("000001", budget_seconds=3.0)
+            sr = (cf.get("data") or {}).get("sector_rankings", {})
+            if sr.get("top") or sr.get("bottom"):
+                overview.capital_flow_sectors = sr
+                logger.info(f"[大盘] 板块资金净流入前三: {[s['name'] for s in sr.get('top', [])[:3]]}")
+        except Exception as e:
+            logger.debug(f"[大盘] 板块资金净流入获取失败: {e}")
     
     # def _get_north_flow(self, overview: MarketOverview):
     #     """获取北向资金流入"""
@@ -395,6 +406,27 @@ class MarketAnalyzer:
                 [f"**{s['name']}**({s['change_pct']:+.2f}%)" for s in overview.bottom_sectors[:5]]
             )
             lines.append(f"> 💧 领跌: {bot}")
+
+        # 追加板块资金净流入排名
+        cf_sectors = overview.capital_flow_sectors
+        if cf_sectors:
+            def _fmt_cf(v):
+                if v is None:
+                    return "N/A"
+                return f"{'+' if v >= 0 else ''}{v / 1e8:.1f}亿"
+            top_cf = " | ".join(
+                f"**{s['name']}**({_fmt_cf(s.get('net_inflow'))})"
+                for s in cf_sectors.get("top", [])[:3]
+            )
+            bot_cf = " | ".join(
+                f"**{s['name']}**({_fmt_cf(s.get('net_inflow'))})"
+                for s in cf_sectors.get("bottom", [])[:3]
+            )
+            if top_cf:
+                lines.append(f"> 💰 资金净流入: {top_cf}")
+            if bot_cf:
+                lines.append(f"> 🚨 资金净流出: {bot_cf}")
+
         return "\n".join(lines)
 
     def _build_review_prompt(self, overview: MarketOverview, news: List) -> str:
@@ -452,6 +484,25 @@ Lagging: {bottom_sectors_text if bottom_sectors_text else "N/A"}"""
                 sector_block = f"""## 板块表现
 领涨: {top_sectors_text if top_sectors_text else "暂无数据"}
 领跌: {bottom_sectors_text if bottom_sectors_text else "暂无数据"}"""
+                # 追加板块资金净流入数据到 prompt
+                cf_sectors = overview.capital_flow_sectors
+                if cf_sectors:
+                    def _fmt_cf(v):
+                        if v is None:
+                            return "N/A"
+                        return f"{'+' if v >= 0 else ''}{v / 1e8:.1f}亿"
+                    top_cf = "、".join(
+                        f"{s['name']}({_fmt_cf(s.get('net_inflow'))})"
+                        for s in cf_sectors.get("top", [])[:3]
+                    )
+                    bot_cf = "、".join(
+                        f"{s['name']}({_fmt_cf(s.get('net_inflow'))})"
+                        for s in cf_sectors.get("bottom", [])[:3]
+                    )
+                    if top_cf:
+                        sector_block += f"\n资金净流入: {top_cf}"
+                    if bot_cf:
+                        sector_block += f"\n资金净流出: {bot_cf}"
             else:
                 sector_block = "## 板块表现\n（美股暂无板块涨跌数据）"
 

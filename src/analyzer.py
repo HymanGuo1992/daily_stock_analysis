@@ -1416,7 +1416,44 @@ class GeminiAnalyzer:
 | 70%筹码集中度 | {chip.get('concentration_70', 0):.2%} | |
 | 筹码状态 | {chip.get('chip_status', unknown_text)} | |
 """
-        
+
+        # 添加资金流向数据
+        _fc = context.get('fundamental_context', {})
+        if 'capital_flow' in _fc:
+            cf = _fc['capital_flow']
+            sf = cf.get('stock_flow', {})
+            sr = cf.get('sector_rankings', {})
+
+            def _fmt_flow(v):
+                if v is None:
+                    return 'N/A'
+                return f"{'+' if v >= 0 else ''}{v / 1e8:.2f}亿"
+
+            top_cf = '、'.join(
+                f"{s['name']}({_fmt_flow(s.get('net_inflow'))})"
+                for s in sr.get('top', [])[:3]
+            )
+            bot_cf = '、'.join(
+                f"{s['name']}({_fmt_flow(s.get('net_inflow'))})"
+                for s in sr.get('bottom', [])[:3]
+            )
+            prompt += f"""
+### 资金流向
+| 指标 | 数值 | 含义 |
+|------|------|------|
+| 今日主力净流入 | {_fmt_flow(sf.get('main_net_inflow'))} | 正=主力流入/负=主力流出 |
+| 5日主力净流入 | {_fmt_flow(sf.get('inflow_5d'))} | |
+| 10日主力净流入 | {_fmt_flow(sf.get('inflow_10d'))} | |
+
+**板块资金流入前三**：{top_cf if top_cf else '暂无数据'}
+**板块资金流出前三**：{bot_cf if bot_cf else '暂无数据'}
+"""
+
+        # 龙虎榜预警（仅上榜时显示）
+        _dt = _fc.get('dragon_tiger', {})
+        if _dt.get('is_on_list'):
+            prompt += f"> ⚠️ **龙虎榜预警**：近20日出现 {_dt.get('recent_count', 0)} 次，最近日期 {_dt.get('latest_date', 'N/A')}\n"
+
         # 添加趋势分析结果（仅隐式内建 bull_trend 默认回退保留旧口径）
         if 'trend_analysis' in context:
             trend = context['trend_analysis']
@@ -1602,6 +1639,7 @@ class GeminiAnalyzer:
 5. ❓ 消息面有无重大利空？（减持、处罚、业绩变脸等）
 6. ❓ MACD 当前金叉/死叉状态？DIF 与 DEA 的趋势方向是否一致？柱状图放大还是收缩？
 7. ❓ RSI(6) 是否处于超买（>70）或超卖（<30）区间？与 RSI(12)/RSI(24) 是否共振？
+8. ❓ 今日主力资金净流入方向如何？近5日/10日累计是否持续流入或流出？
 """
         else:
             prompt += f"""

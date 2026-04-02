@@ -283,6 +283,25 @@ class StockAnalysisPipeline:
             except Exception as e:
                 logger.debug(f"{stock_name}({code}) 基本面快照写入失败: {e}")
 
+            # Step 2.6: 资金流向（个股主力净流入 + 板块排名 + 龙虎榜）— fail-open，不影响主流程
+            try:
+                cf_ctx = self.fetcher_manager.get_capital_flow_context(code, budget_seconds=2.0)
+                cf_data = cf_ctx.get("data") or {}
+                has_stock_flow = any(v is not None for v in cf_data.get("stock_flow", {}).values())
+                has_sector = bool((cf_data.get("sector_rankings") or {}).get("top"))
+                if has_stock_flow or has_sector:
+                    fundamental_context["capital_flow"] = cf_data
+            except Exception as e:
+                logger.debug(f"{stock_name}({code}) 资金流向获取失败（非阻断）: {e}")
+
+            try:
+                dt_ctx = self.fetcher_manager.get_dragon_tiger_context(code, budget_seconds=1.5)
+                dt_data = dt_ctx.get("data") or {}
+                if dt_data.get("is_on_list"):
+                    fundamental_context["dragon_tiger"] = dt_data
+            except Exception as e:
+                logger.debug(f"{stock_name}({code}) 龙虎榜获取失败（非阻断）: {e}")
+
             # Step 3: 趋势分析（基于交易理念）— 在 Agent 分支之前执行，供两条路径共用
             trend_result: Optional[TrendAnalysisResult] = None
             try:
