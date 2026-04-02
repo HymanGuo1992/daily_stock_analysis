@@ -22,6 +22,13 @@ A股自选股智能分析系统 - 主调度程序
 - 买点偏好：缩量回踩 MA5/MA10 支撑
 """
 import os
+import warnings
+
+# 过滤第三方库的弃用警告（lark_oapi/飞书 SDK 未适配 Python 3.13）
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='lark_oapi')
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='pkg_resources')
+warnings.filterwarnings('ignore', category=FutureWarning, module='lark_oapi')
+
 from pathlib import Path
 from typing import Dict, Optional
 

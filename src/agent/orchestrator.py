@@ -597,6 +597,14 @@ class AgentOrchestrator:
         if not ctx.stock_code:
             ctx.stock_code = _extract_stock_code(task)
 
+        # If no code found, try name-to-code resolution (for Chinese stock names)
+        if not ctx.stock_code and task:
+            from src.services.name_to_code_resolver import resolve_name_to_code
+            resolved = resolve_name_to_code(task)
+            if resolved:
+                ctx.stock_code = resolved
+                logger.info("Resolved stock name to code: %s -> %s", task, resolved)
+
         if "report_language" not in ctx.meta:
             ctx.meta["report_language"] = "zh"
 

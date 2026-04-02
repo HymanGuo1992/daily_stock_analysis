@@ -19,6 +19,12 @@ Daily Stock Analysis - FastAPI 后端服务入口
 """
 
 import logging
+import warnings
+
+# 过滤第三方库的弃用警告（lark_oapi/飞书 SDK 未适配 Python 3.13）
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='lark_oapi')
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='pkg_resources')
+warnings.filterwarnings('ignore', category=FutureWarning, module='lark_oapi')
 
 from src.config import setup_env, get_config
 from src.logging_config import setup_logging
