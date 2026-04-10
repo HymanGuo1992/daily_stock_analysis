@@ -469,10 +469,18 @@ def format_feishu_markdown(content: str) -> str:
             _flush_table_rows(table_buffer, lines)
             table_buffer = []
 
-        # 转换标题（# ## ### 等）
+        # 转换标题（# ## ### 等）- 添加 emoji 增强可读性
         if re.match(r'^#{1,6}\s+', line):
             title = re.sub(r'^#{1,6}\s+', '', line).strip()
-            line = f"**{title}**" if title else ""
+            # 根据标题级别添加不同 emoji
+            if line.startswith('# '):
+                line = f"📊 **{title}**" if title else ""
+            elif line.startswith('## '):
+                line = f"📈 **{title}**" if title else ""
+            elif line.startswith('### '):
+                line = f"📉 **{title}**" if title else ""
+            else:
+                line = f"**{title}**" if title else ""
         # 转换引用块
         elif line.startswith('> '):
             quote = line[2:].strip()
